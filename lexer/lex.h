@@ -216,7 +216,7 @@ struct c_token
 	
 };
 
-struct c_token *get_next_token();
+struct c_token *c_lex_get_next_token();
 void lstate_init(char *fname);
 
 // Create and return an ID

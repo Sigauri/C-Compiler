@@ -15,17 +15,7 @@
 #include "symboltable.h"
 
 
-
-/*
-
-TODOs:
-	Rewrite these HUGE macro definitions as functions
-	Clean up the mess with hashtables
-	Comment everything properly
-
-*/
-
-static struct c_file
+struct c_file
 {
 	FILE *fp;
 
@@ -41,57 +31,6 @@ static struct c_file
 struct c_lex_state c_lstate;
 struct c_lex_state *saved_state;
 
-/*
-	Moves lookahead forward by x positions
-	Handles EOF char if detected
-	Writes x characters to c_lstate.lex_cur
-*/
-// #define MOVE_LOOKAHEAD(x)		 																\
-// 	 																							\
-// 	{																							\
-// 																								\
-// 		int move_current = x;																	\
-// 		int move_next = 0;																		\
-// 																								\
-// 		if(GET_LOOKAHEAD_ADDR + x > BUFFER_END_FIRST && 										\
-// 			GET_LOOKAHEAD_ADDR < BUFFER_END_FIRST)												\
-// 		{																						\
-// 			move_current = (GET_LOOKAHEAD_ADDR + x) - BUFFER_END_FIRST;							\
-// 			getchar();																			\
-// 		}																						\
-// 		else if(GET_LOOKAHEAD_ADDR + x > BUFFER_END_SECOND) 									\
-// 			move_current = BUFFER_END_SECOND - GET_LOOKAHEAD_ADDR;								\
-// 																								\
-// 																								\
-// 		move_next = x - move_current;															\
-// 																								\
-// 		strncpy(c_lstate.lex_cur, GET_LOOKAHEAD_ADDR, move_current);							\
-// 		c_lstate.lex_cur += move_current;														\
-// 		c_lstate.lookahead += move_current;														\
-// 								 																\
-// 		if(GET_LOOKAHEAD == EOF) 																\
-// 		{																						\
-// 			if(GET_LOOKAHEAD_ADDR == BUFFER_END_FIRST											\
-// 									||															\
-// 			GET_LOOKAHEAD_ADDR == BUFFER_END_SECOND)											\
-// 			{																					\
-// 				buffer_reload();																\
-// 																								\
-// 				strncpy(c_lstate.lex_cur, GET_LOOKAHEAD_ADDR, move_next);						\
-// 				c_lstate.lex_cur += move_next;													\
-// 				c_lstate.lookahead += move_next;												\
-// 			}																					\
-// 			else 																				\
-// 			{																					\
-// 				c_lstate.eof_reached = 1;														\
-// 				printf("%s\n", "EOF reached");													\
-// 				getchar();																		\
-// 			}																					\
-// 		}																						\
-// 																								\
-// 	}
-
-
 #define GET_LOOKAHEAD 		((*c_lstate.lookahead))
 #define GET_LOOKAHEAD_ADDR  (c_lstate.lookahead)
 
@@ -105,7 +44,7 @@ struct c_lex_state *saved_state;
 
 //Set ch to the value of lookahead + offset
 //Check if we cross the buffer's boundary
-static inline int GET_NEXT_LOOKAHEAD(int offset)
+static int get_next_lookahead(int offset)
 {
 		int ch = *(GET_LOOKAHEAD_ADDR + offset);													
 		if(GET_LOOKAHEAD_ADDR < BUFFER_END_FIRST && 											
@@ -151,20 +90,16 @@ static inline int GET_NEXT_LOOKAHEAD(int offset)
 	memset(c_lstate.lex_base, '\0', c_lstate.lex_size);		
 
 
-
-
-
-
-
-
-
-
 static void buffer_reload();
 static struct c_file init_file(struct c_file *file, char *fname, char *dir);
 
+/*
+	Moves lookahead forward by x positions
+	Handles EOF char if detected
+	Writes x characters to c_lstate.lex_cur
+*/
 void move_lookahead(unsigned int x)
-{
-																								
+{																						
 		int move_current = x;																	
 		int move_next = 0;																		
 																								
@@ -462,7 +397,7 @@ void lstate_init(char *fname)
 
 //
 
-struct c_token *get_next_token()
+struct c_token *c_lex_get_next_token()
 {
 	int ttype = C_TOK_UNKNOWN;	
 	float value = 0;
@@ -481,8 +416,8 @@ struct c_token *get_next_token()
 
 		//If one-line comment, then first end char is '\n',
 		//If multiple-line, first end char is '*' and second - '\'
-		if(GET_NEXT_LOOKAHEAD(1) == '/') first_end_char = '\n';
-		else if(GET_NEXT_LOOKAHEAD(1) == '*')
+		if(get_next_lookahead(1) == '/') first_end_char = '\n';
+		else if(get_next_lookahead(1) == '*')
 		{
 			first_end_char = '*';
 			second_end_char = '/';
