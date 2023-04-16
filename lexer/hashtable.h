@@ -20,6 +20,9 @@ struct node
 	struct node *next;
 };
 
+
+
+// This will need a LOT of storage. Remove things we don't need
 struct hash_table
 {
 

@@ -1,31 +1,24 @@
-#include "stddef.h"	
+
+#ifndef STACK_H_INCLUDED
+#include "stddef.h"
+#define STACK_DEFAULT_SIZE 64
 
 struct stack
 {
-	//The element on the top of the stack
-	struct node *top;
+	// stack size
+	size_t st_size;
 
-	// The amount of objects added to stack 
-	int count;
+	// Array of items
+	void **st_items;
+	
+	// Pointer to the top of stack
+	void **st_top;
 };
 
-
-
-void *pop(struct stack *st);
-void *peek();
-struct stack *create_stack();
-void push(void *value, struct stack *st);
-// return 1 if empty, 0 otherwise
-int is_empty();
-
-
-struct node
-{
-	void *value;
-	struct node *next;
-	struct node *prev;
-};
-
-
-
-// Allocate, intialize and return a stack
+void init_stack(struct stack **st_addr);
+void remove_stack(struct stack *st);
+void push(struct stack *st, void *item);
+void pop(struct stack *st);
+void *peek(struct stack *st);
+#define STACK_H_INCLUDED
+#endif

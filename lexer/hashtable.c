@@ -7,17 +7,17 @@
 
 /* 
 
-TODOs:
+	TODOs:
 
--Make it work for statically allocated keys and values too ???
+		-Make it work for statically allocated keys and values too ?
 
--Iterating through whole ht->ht_arr when copying or destroying 
- a hash table can take too much time. Maybe create a list of all
- occupied entries?
+		-Iterating through whole ht->ht_arr when copying or destroying 
+		 a hash table can take too much time. Maybe create a list of all
+		 occupied entries?
 
--Passing double pointer to those functions??
+		-Passing double pointers to those functions?
 
--Not sure about how good the hash functions are. Do some tests?  
+		-Not sure about how good the hash functions are. Do some tests?  
 
 */
 
@@ -304,3 +304,5 @@ void ht_destroy(struct hash_table **ht)
 	free(*ht);
 	*ht = NULL;
 }
+
+

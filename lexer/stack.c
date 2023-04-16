@@ -1,67 +1,52 @@
 #include "stack.h"
 #include "stdlib.h"
-#include "string.h"
 #include "stdio.h"
+#include "stddef.h"
 
-void push(void *value, struct stack *st)
+
+/* 
+	TODOs:
+		test it
+		make the stack resizeable
+*/
+
+
+void init_stack(struct stack **st_addr)
 {
+	*st_addr = malloc(sizeof(struct stack)); 
+	struct stack *st = *st_addr;
+	st->st_size = STACK_DEFAULT_SIZE;
 
-	int node_size = sizeof(struct node);
-
-	if(!st->top)
-	{
-		st->top = malloc(node_size);
-		st->top->prev = NULL;
-		st->top->next = NULL;
-		st->top->value = value;
-		return;
-	}
-
-	st->top->next = malloc(node_size);
-	st->top->next->prev = st->top;
-	st->top->next->value = value;
-
-	st->top = st->top->next;
-	st->count++;
-
+	// allocate array of pointers to stack items
+	st->st_items = calloc(st->st_size, sizeof(size_t));
+	st->st_top = st->st_items;
 }
 
-void *pop(struct stack *st)
+// free all the space allocated for stack
+void remove_stack(struct stack *st)
+{	
+	free(st->st_items);
+	st->st_items = NULL;
+}
+
+
+
+void push(struct stack *st, void *item)
 {
-	void **tmp = &st->top;
-	
-	if(!(*tmp)) return NULL;
+	*st->st_top = item;
+	st->st_top++;
+}
 
-	if(st->top->prev) st->top = st->top->prev;
-	free(*tmp);
-	*tmp = NULL;
-	return (void*)st->top;
-
-
+void pop(struct stack *st)
+{
+	if(st->st_top != st->st_items)
+		st->st_top--;
 }
 
 void *peek(struct stack *st)
 {
-	return st->top;
+	if(st->st_top == st->st_items)
+		return *st->st_items;
+	return *(st->st_top-1);
 }
 
-int is_empty(struct stack *st)
-{
-	if(!st->count) return 0;
-	return 1;
-}
-
-
-
-
-
-
-struct stack *create_stack()
-{
-	
-	int to_allocate = sizeof(struct stack);
-	struct stack *st = malloc(to_allocate);
-
-	memset(st, 0, to_allocate);
-	return st;
-}

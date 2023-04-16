@@ -1,11 +1,3 @@
-//////////////////////////////////
-//								//
-//		LEXICAL ANALYZER		//
-//								//
-//		 Author: Big_Jo			//
-//								//
-//////////////////////////////////
-
 #include "stdio.h"
 #include "lex.h"
 #include "string.h"
@@ -41,6 +33,7 @@ struct c_lex_state *saved_state;
 			c_lstate.line_num++;	\
 		c_lstate.lookahead+=1;		\
 	}
+
 
 //Set ch to the value of lookahead + offset
 //Check if we cross the buffer's boundary
@@ -91,7 +84,7 @@ static int get_next_lookahead(int offset)
 
 
 static void buffer_reload();
-static struct c_file init_file(struct c_file *file, char *fname, char *dir);
+static void init_file(struct c_file *file, char *fname, char *dir);
 
 /*
 	Moves lookahead forward by x positions
@@ -148,8 +141,8 @@ c_tok_name_create_id(char *lexeme, struct pos_t *t_pos,
 	struct c_tok_name *result = malloc(sizeof(struct c_tok_name));
 	result->lexeme = lexeme;
 	result->type = C_TOK_IDENTIFIER;
-	result->tok_u.id_type = id_type;
-	result->tok_u.first_pos = t_pos;
+	result->tok_u.c_tok_id.id_type = id_type;
+	result->tok_u.c_tok_id.first_pos = t_pos;
 	return result;
 }
 
@@ -162,7 +155,7 @@ struct c_tok_name *c_tok_name_create_kwd(char *lexeme, int kwd_type)
 	return result;
 }
 
-static struct c_file init_file(struct c_file *file, char *fname, char *dir)
+static void init_file(struct c_file *file, char *fname, char *dir)
 {
 	file->fname = fname;
 	file->dir = dir;
@@ -176,7 +169,7 @@ static struct c_file init_file(struct c_file *file, char *fname, char *dir)
 
 
 /*
-	Reloads buffer and moves lookahead to the other when needed.
+	Reloads buffer and moves lookahead to the other buffer when needed.
 	Will ONLY work with GET_LOOKAHEAD_ADDR = PAGE_SIZE or BUFFER_PAIR_SIZE
 */
 static void buffer_reload()
@@ -210,39 +203,39 @@ static void buffer_reload()
 // A table with continuations for each punctuator that can be continued(needed to init ht_mchar_punct) .
 static unsigned char mchar_punct[MCHAR_PUNCT_QT] [MCHAR_MAX_VARIATIONS] [MCHAR_LEN] = 
 				{
-					">=", ">", "=", "", "", 		// '>'
-					">", "-", "=", "", "",			// '-'
-					"<=", "<", "=", ":", "%",		// '<'
-					"+", "=", "", "", "",			// '+'
-					"=", "", "", "", "",			// '/'
-					"=", "", "", "","",				// '*'
-					":%:", ":", "=", "", "",		// '%'
-					"=", "", "", "", "",			// '!'
-					"&", "=", "", "", "",			// '&'
-					"|", "=", "", "", "",			// '|'
-					"=", "", "", "", "",			// '^'
-					"#", "", "", "", "",			// "#"
-					"..", "", "", "", "",			// '.'
-					"=", "", "", "", ""				// '='
+					{">=", ">", "=", "", ""}, 		// '>'
+					{">", "-", "=", "", ""},			// '-'
+					{"<=", "<", "=", ":", "%"},		// '<'
+					{"+", "=", "", "", ""},			// '+'
+					{"=", "", "", "", ""},			// '/'
+					{"=", "", "", "",""},				// '*'
+					{":%:", ":", "=", "", ""},		// '%'
+					{"=", "", "", "", ""},			// '!'
+					{"&", "=", "", "", ""},			// '&'
+					{"|", "=", "", "", ""},			// '|'
+					{"=", "", "", "", ""},			// '^'
+					{"#", "", "", "", ""},			// "#"
+					{"..", "", "", "", ""},			// '.'
+					{"=", "", "", "", ""}				// '='
 				};
 
 //A table with ttypes for multiple char punctuators(needed to init ht_mchar_ttype) 
 static unsigned char mchar_ttype[MCHAR_PUNCT_QT][MCHAR_MAX_VARIATIONS] = 
 				{
-					C_TOK_SHIFT_R_EQ, C_TOK_SHIFT_R, C_TOK_MORE_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_ARROW, C_TOK_MINUS_MINUS, C_TOK_MINUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_SHIFT_L_EQ, C_TOK_SHIFT_L, C_TOK_LESS_EQ, C_TOK_OPEN_SQR_BRACKET, C_TOK_OPEN_BRACE,
-					C_TOK_PLUS_PLUS, C_TOK_PLUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_DIV_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_MINUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_HASH_HASH, C_TOK_HASH, C_TOK_PERCENT_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_NOT_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_AND, C_TOK_BIT_AND_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_OR, C_TOK_BIT_OR_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_EXP_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_HASH_HASH, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_THREE_DOT, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN,
-					C_TOK_EQ_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN
+					{C_TOK_SHIFT_R_EQ, C_TOK_SHIFT_R, C_TOK_MORE_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_ARROW, C_TOK_MINUS_MINUS, C_TOK_MINUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_SHIFT_L_EQ, C_TOK_SHIFT_L, C_TOK_LESS_EQ, C_TOK_OPEN_SQR_BRACKET, C_TOK_OPEN_BRACE},
+					{C_TOK_PLUS_PLUS, C_TOK_PLUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_DIV_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_MINUS_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_HASH_HASH, C_TOK_HASH, C_TOK_PERCENT_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_NOT_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_AND, C_TOK_BIT_AND_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_OR, C_TOK_BIT_OR_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_EXP_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_HASH_HASH, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_THREE_DOT, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN},
+					{C_TOK_EQ_EQ, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN, C_TOK_UNKNOWN}
 				};
 
 
@@ -403,7 +396,7 @@ struct c_token *c_lex_get_next_token()
 	float value = 0;
 
 	struct c_token *result = malloc(sizeof(struct c_token));
-
+	result->lexeme = calloc(1, 192);
 	//Skip whitespace characters
 	SKIP_WS();
 
@@ -573,7 +566,8 @@ struct c_token *c_lex_get_next_token()
 		c_lstate.lookahead = c_lstate.lookahead - 1;
 		move_lookahead(1);
 	}
-	printf("%s\n", c_lstate.lex_base);
+	// printf("%s\n", c_lstate.lex_base);
+	strcpy(result->lexeme, c_lstate.lex_base);
 	RS_LEX();
 
 	result->ttype = ttype;

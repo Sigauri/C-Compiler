@@ -58,7 +58,7 @@ struct c_tok_name
 			
 			//Type of ID
 			char *id_type;
-		};
+		} c_tok_id;
 
 		// Keyword type
 		int kwd_type;
@@ -211,6 +211,8 @@ enum c_tok_type
 struct c_token
 {
 	enum c_tok_type ttype;
+
+	char *lexeme;
 
 	float value;
 	

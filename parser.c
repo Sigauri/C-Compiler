@@ -1,15 +1,185 @@
 #include "stdio.h"
 #include "lexer/lex.h"
 #include "stdarg.h"
-struct c_token *current = NULL;
+#include "stdlib.h"
+#include "string.h"
+#include "lexer/stack.h"
+#include "errors.h"
+
+// Amount of synchronizing tokens
+#define SYNC_TOKENS_QT 3
+
+
+// What size should this be?
+#define BT_BUFFER_SIZE 256
+
 
 // Synchronizing tokens
-#define SYNC_TOKENS_SIZE 2
-const int SYNC_TOKENS[SYNC_TOKENS_SIZE] = {C_TOK_OPEN_BRACE, C_TOK_SEMI};
+const int SYNC_TOKENS[SYNC_TOKENS_QT] = {C_TOK_OPEN_BRACE, C_TOK_SEMI, C_TOK_UNKNOWN};
+
+// lexer's state
 extern struct c_lex_state c_lstate;
 
+/* 
+	TODOs:
+		Organize error handling 
+		
+		Deal with freeing storage allocated for bt_state
+		when its popped off the stack.
+*/
 
-int a = 0;
+
+
+// Parser's state
+struct c_parser_state
+{
+	// current lookahead token
+	struct c_token *lookahead;
+
+	// Pointer to a function that gets the next token
+	void (*move_lookahead)();
+
+	// Stack of bt_state structs
+	struct stack *st_bt_state;
+
+	struct error_state *estate;
+
+} *pstate = NULL;
+
+/*	
+	As soon as bt_start() is called, we need to start 
+	storing tokens in bt_buffer[]. 
+	
+	When bt_restore() is called (if an error is encountered while parsing a production) 
+	we need to stop storing tokens and start acquiring tokens from bt_buffer.
+	If, while parsing we find out that there are no more tokens in bt_buffer[], 
+	we must switch to lexer's strem and start storing tokens in bt_buffer[] again.
+	Call bt_restore() again if given production can't be applied too. 
+
+*/
+
+
+// bactracking state (we have a stack of those - pstate->st_bt_state)
+struct c_bt_state
+{
+	// Pointer to an array of pointers to tokens
+	struct c_token **bt_buffer;	
+
+
+	int backtracking;
+
+	/* 
+		These two are used when storing/reading
+		into/from buffer, in  get_next_token
+		and get_next_token_bt respectivly
+	*/
+	int buffer_read_id;
+
+	int buffer_write_id;
+
+	int _error
+
+};
+
+
+
+/*  
+	A wrapper for lexer's c_lex_get_next_token()
+	Allows to store token in pstate->lookahead 
+	and store tokens in bt_buffer if bt_start
+	is called.
+*/  
+
+void get_next_token()
+{
+	struct c_bt_state *bt_state = peek(pstate->st_bt_state);
+	pstate->lookahead = c_lex_get_next_token();
+	
+	if(bt_state && bt_state->backtracking)
+		bt_state->bt_buffer[bt_state->buffer_write_id++] = pstate->lookahead;
+}
+
+
+// Get the next token from bt_buffer
+void get_next_token_bt()
+{
+	struct c_bt_state *bt_state = peek(pstate->st_bt_state);
+	if(bt_state->buffer_read_id >= BT_BUFFER_SIZE) 
+	{
+		printf("%s\n", "Buffer exceeded");
+		return;
+	}
+	if(!bt_state->bt_buffer[bt_state->buffer_read_id])
+	{
+		bt_state->backtracking = 0;
+		bt_state->buffer_read_id = 0;
+		pstate->move_lookahead = get_next_token;
+		pstate->move_lookahead();
+		return;
+	}
+	pstate->lookahead = bt_state->bt_buffer[bt_state->buffer_read_id++];
+}
+
+
+
+// Basic initialization stuff
+void parser_init()
+{
+	pstate = malloc(sizeof(struct c_parser_state)); 
+
+	pstate->move_lookahead = get_next_token;
+
+	init_stack(&pstate->st_bt_state);
+
+	init_error_state(&pstate->estate);
+}
+
+// Start bactracking
+void  bt_start()
+{
+	struct c_bt_state *bt_state = malloc(sizeof(struct c_bt_state));
+
+	// init bt_state
+	bt_state->buffer_read_id = 0;
+	bt_state->buffer_write_id = 0;
+	bt_state->backtracking = 1;
+	bt_state->bt_buffer = calloc(BT_BUFFER_SIZE, sizeof(struct c_token *));
+	pstate->move_lookahead = get_next_token;
+
+    bt_state->bt_buffer[bt_state->buffer_write_id++] = pstate->lookahead;
+    bt_state->_error = 0;
+
+	// push the state into stack of states
+	push(pstate->st_bt_state, bt_state);
+
+
+}
+
+// Restore the state we had before bt_start was called
+void bt_restore()
+{
+	struct c_bt_state *bt_state = peek(pstate->st_bt_state);
+	bt_state->buffer_read_id = 0;
+	pstate->move_lookahead = get_next_token_bt;
+	pstate->move_lookahead();
+}
+
+// End backtracking
+void bt_end()
+{
+	// free storage allocated for bt_state ?  
+
+	pop(pstate->st_bt_state);
+
+}
+
+// #define bt_start() c_bt_state->backtracking = 1;
+
+
+// #define bt_restore()							\
+// 	c_bt_state->buffer_read_id = 0;					\
+// 	pstate->move_lookahead = get_next_token_bt;	
+
 
 void primary_expression();
 void expression();
@@ -20,46 +190,88 @@ void mul_expression();
 void cond_expression();
 void additive_expression();
 void assignment_expression();
+
+
+#define ERROR_ARGS_NUBER 6
+
+
+
+/*
+	
+	We need to pass the message to error, so that we can
+	take certain actions, and add the error to the error stack.
+
+	If bactracking isn't active we need to output an error and
+	skip the tokens til we meet one of the SYNC_TOKENS, otherwise
+	we have to call add_error() to store the error in the stack of 
+	errors and set the error variable to 1 ( So we know we must try another production)
+*/
+
 void error(char *msg, ...)
 {	
-	a = 1;
-	printf("%s\n", "error");
-	// char buffer[512];
-	// va_list args;
-	// va_start(args, msg);
-	// vsnprintf(buffer, sizeof(buffer), msg, args);
-	// printf(buffer);
-	
-	// while(1)
+
+
+	struct c_bt_state *bt_state = peek(pstate->st_bt_state);
+	bt_state->_error++;
+	printf("%s\n", "error() called");
+
+
+	va_list valist;
+	va_start(valist, msg);
+
+	char *buffer = malloc(512);
+	vsprintf(buffer, msg, valist);
+
+	add_error(pstate->estate, buffer);
+
+	if(!bt_state && !bt_state->backtracking)
+	{
+		
+		int sync = 0;
+		while(!sync)
+		{
+			for(int i = 0; i < SYNC_TOKENS_QT; i++)
+			{
+				if(pstate->lookahead->ttype == SYNC_TOKENS[i])
+					sync = 1;
+			}
+			pstate->move_lookahead();
+		}
+	}
+
+	pstate->estate->error++;
+	va_end(valist);
+		
+	// if(bt_state->backtracking == 1)
 	// {
-	// 	current = get_next_token();
-	// 	for(int i = 0; i < SYNC_TOKENS_SIZE; i++)
-	// 	{
-	// 		if(current->ttype == SYNC_TOKENS[i] ||
-	// 			current->ttype == C_TOK_UNKNOWN) return;
-	// 	}
+	// 	bt_restore();
+	// 	_error = 1;
+	// 	return;
 	// }
 }
 
 void expression()
 {
+	bt_start();
 	assignment_expression();
+	bt_end();
+	//pstate->move_lookahead();
 }
 
 void primary_expression()
 {
-	if( current->ttype != C_TOK_IDENTIFIER  &&
-		current->ttype != C_TOK_STRING		&&
-		current->ttype != C_TOK_CONSTANT	
+	if( pstate->lookahead->ttype != C_TOK_IDENTIFIER  &&
+		pstate->lookahead->ttype != C_TOK_STRING		&&
+		pstate->lookahead->ttype != C_TOK_CONSTANT	
 	  )
 	{
-		//error
-		if(current->ttype == C_TOK_OPEN_PAREN)
+		//errors
+		if(pstate->lookahead->ttype == C_TOK_OPEN_PAREN)
 		{
-			current = get_next_token();
+			pstate->move_lookahead();
 			expression();
-			// current = get_next_token();
-			if(current->ttype == C_TOK_CLOSE_PAREN) return;
+			// pstate->move_lookahead();
+			if(pstate->lookahead->ttype == C_TOK_CLOSE_PAREN) return;
 			else error("Error at line %d: expression expected\n", c_lstate.line_num);
 		}
 		
@@ -71,17 +283,17 @@ void primary_expression()
 void unary_expression()
 {
 
-	switch(current->ttype)
+	switch(pstate->lookahead->ttype)
 	{
 		case C_TOK_PLUS_PLUS:
 		{
-			current = get_next_token();
+			pstate->move_lookahead();
 			unary_expression();
 			break;
 		}
 		case C_TOK_MINUS_MINUS:
 		{
-			current = get_next_token();
+			pstate->move_lookahead();
 			unary_expression();
 			break;
 		}
@@ -89,13 +301,14 @@ void unary_expression()
 		case C_TOK_PLUS: case C_TOK_MINUS:
 		case C_TOK_ONES_COMPLEMENT: case C_TOK_NOT:
 		{
-			current = get_next_token();
+			pstate->move_lookahead();
 			cast_expression();
 			break;
 		}
 		default:
 		{
 			postfix_expression();
+			// pstate->move_lookahead();
 			break;
 		}
 		//sizeof
@@ -116,11 +329,11 @@ void mul_expression()
 	cast_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_MUL:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				cast_expression();
 				continue;
 				break;
@@ -128,7 +341,7 @@ void mul_expression()
 
 			case C_TOK_DIV:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				cast_expression();
 				continue;			
 				break;
@@ -136,7 +349,7 @@ void mul_expression()
 
 			case C_TOK_PERCENT:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				cast_expression();
 				continue;
 				break;
@@ -157,11 +370,11 @@ void additive_expression()
 	mul_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_PLUS:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				mul_expression();
 				continue;
 				break;
@@ -169,7 +382,7 @@ void additive_expression()
 
 			case C_TOK_MINUS:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				mul_expression();
 				continue;			
 				break;
@@ -192,14 +405,14 @@ void postfix_expression()
 	while(!out)
 	{
 
-		current = get_next_token();
-		switch(current->ttype)
+		pstate->move_lookahead();
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_OPEN_SQR_BRACKET:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				expression();
-				if(current->ttype != C_TOK_CLOSE_SQR_BRACKET)
+				if(pstate->lookahead->ttype != C_TOK_CLOSE_SQR_BRACKET)
 					error("error at line %d: expected postfix expression\n", c_lstate.line_num);
 				continue;
 				break;
@@ -212,15 +425,16 @@ void postfix_expression()
 			}
 			case C_TOK_DOT:
 			{
-				current = get_next_token();
-				if(current->ttype != C_TOK_IDENTIFIER) 
+				pstate->move_lookahead();
+				if(pstate->lookahead->ttype != C_TOK_IDENTIFIER) 
 					error("error at line %d: expected identifier\n", c_lstate.line_num);
+						
 				continue;
 			}
 			case C_TOK_ARROW:
 			{
-				current = get_next_token();
-				if(current->ttype != C_TOK_IDENTIFIER) 
+				pstate->move_lookahead();
+				if(pstate->lookahead->ttype != C_TOK_IDENTIFIER) 
 					error("error at line %d: expected identifier\n", c_lstate.line_num);
 				continue;				
 			}
@@ -242,11 +456,11 @@ void shift_expression()
 	additive_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_SHIFT_L:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				additive_expression();
 				continue;
 				break;
@@ -254,7 +468,7 @@ void shift_expression()
 
 			case C_TOK_SHIFT_R:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				additive_expression();
 				continue;			
 				break;
@@ -274,11 +488,11 @@ void relationl_expression()
 	shift_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_LESS:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				shift_expression();
 				continue;
 				break;
@@ -286,7 +500,7 @@ void relationl_expression()
 
 			case C_TOK_MORE:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				shift_expression();
 				continue;			
 				break;
@@ -294,7 +508,7 @@ void relationl_expression()
 
 			case C_TOK_LESS_EQ:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				shift_expression();
 				continue;			
 				break;				
@@ -302,7 +516,7 @@ void relationl_expression()
 
 			case C_TOK_MORE_EQ:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				shift_expression();
 				continue;			
 				break;				
@@ -322,11 +536,11 @@ void eq_expression()
 	relationl_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_EQ_EQ:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				relationl_expression();
 				continue;
 				break;
@@ -334,7 +548,7 @@ void eq_expression()
 
 			case C_TOK_NOT_EQ:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				relationl_expression();
 				continue;			
 				break;
@@ -354,11 +568,11 @@ void and_expression()
 	eq_expression();
 	while(!out)
 	{
-		switch(current->ttype)
+		switch(pstate->lookahead->ttype)
 		{
 			case C_TOK_BIT_AND:
 			{
-				current = get_next_token();
+				pstate->move_lookahead();
 				eq_expression();
 				continue;
 				break;
@@ -375,9 +589,9 @@ void and_expression()
 void excl_or_expression()
 {
 	and_expression();
-	while(current->ttype == C_TOK_EXP)
+	while(pstate->lookahead->ttype == C_TOK_EXP)
 	{
-		current = get_next_token();
+		pstate->move_lookahead();
 		and_expression();		
 	}
 }
@@ -385,9 +599,9 @@ void excl_or_expression()
 void incl_or_expression()
 {
 	excl_or_expression();
-	while(current->ttype == C_TOK_BIT_OR)
+	while(pstate->lookahead->ttype == C_TOK_BIT_OR)
 	{
-		current = get_next_token();
+		pstate->move_lookahead();
 		excl_or_expression();
 	}
 }
@@ -395,9 +609,9 @@ void incl_or_expression()
 void logical_and_expression()
 {
 	incl_or_expression();
-	while(current->ttype == C_TOK_AND)
+	while(pstate->lookahead->ttype == C_TOK_AND)
 	{
-		current = get_next_token();
+		pstate->move_lookahead();
 		incl_or_expression();
 	}
 
@@ -406,9 +620,9 @@ void logical_and_expression()
 void logical_or_expression()
 {
 	logical_and_expression();
-	while(current->ttype == C_TOK_OR)
+	while(pstate->lookahead->ttype == C_TOK_OR)
 	{
-		current = get_next_token();
+		pstate->move_lookahead();
 		logical_and_expression();
 	}
 
@@ -418,54 +632,91 @@ void logical_or_expression()
 void cond_expression()
 {
 	logical_or_expression();
-	while(current->ttype == C_TOK_CONDITION)
+	while(pstate->lookahead->ttype == C_TOK_CONDITION)
 	{
-		current = get_next_token();
+		pstate->move_lookahead();
 		expression();
-		if(current->ttype != C_TOK_COLON)
+		if(pstate->lookahead->ttype != C_TOK_COLON)
 			error("Error in line %d: symbol ':' expected in conditional expression", c_lstate.line_num);
-		current = get_next_token();
-		logical_or_expression();
+		pstate->move_lookahead();
+		cond_expression();
+		printf("%s\n", "cond_expression parsed");
 	}
 
 }
 
 void assignment_expression()
 {
-	store_state();
-	unary_expression();
-	// current = get_next_token();
-	if( current->ttype != C_TOK_EQ && 
-		current->ttype != C_TOK_MUL_EQ &&
-		current->ttype != C_TOK_DIV_EQ &&
-		current->ttype != C_TOK_PERCENT_EQ &&
-		current->ttype != C_TOK_PLUS_EQ )
-		error("Error at line %n: expected assignment operator", c_lstate.line_num);
-	current = get_next_token();
-	if(a)
-	{
-		printf("%s\n", "error detected");
-		reset_state();
-		cond_expression();
-		a = 0;
-		return;
-	}
-	assignment_expression();
 
-	printf("%d\n", a);
+	if(pstate->lookahead->ttype != C_TOK_PLUS_PLUS && 
+		pstate->lookahead->ttype != C_TOK_MINUS_MINUS &&
+		pstate->lookahead->ttype != C_TOK_BIT_AND &&
+		pstate->lookahead->ttype != C_TOK_MUL &&
+		pstate->lookahead->ttype != C_TOK_PLUS &&
+		pstate->lookahead->ttype != C_TOK_MINUS &&
+		pstate->lookahead->ttype != C_TOK_ONES_COMPLEMENT &&
+		pstate->lookahead->ttype != C_TOK_NOT &&
+		pstate->lookahead->ttype != C_TOK_IDENTIFIER &&
+		pstate->lookahead->ttype != C_TOK_CONSTANT &&
+		pstate->lookahead->ttype != C_TOK_STRING &&
+		pstate->lookahead->ttype != C_TOK_OPEN_PAREN)
+	{
+		printf("%s\n", "error");
+		 return;
+	}
+
+	unary_expression();
+
+	if(pstate->lookahead->ttype != C_TOK_EQ )
+	{
+		error("expected assignment operator");
+	}
+	pstate->move_lookahead();
+
+	struct c_bt_state *bt_state = peek(pstate->st_bt_state);
+
+	if(bt_state->_error)
+	{
+		int tmp = bt_state->_error;
+		bt_restore();
+		cond_expression();
+		
+		if(bt_state->_error > tmp)
+		{
+			display_error(pstate->estate);
+			
+		}
+		return;
+		bt_state->_error--;
+		pstate->move_lookahead();	
+	}
+
+	
+	
+	bt_start();
+	assignment_expression();
+	bt_end();
+	
+	if(bt_state->_error) display_error(pstate->estate);
 
 }
 
 	
-	
-
-	
-
 
 int main()
 {
 	lstate_init("lexer/test.c");
-	current = get_next_token();
+	parser_init();
+
+	struct error_state *estate;
+	init_error_state(&estate);
+
+	pstate->move_lookahead();
+	bt_start();
+
 	assignment_expression();
+	
+	bt_end();
+	
 	return 0;
 }

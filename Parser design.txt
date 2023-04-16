@@ -24,7 +24,6 @@ Here "id" stands for any set of characters and digits, beginning with a characte
 A really simple grammar. Whats wrong about it? 
 First of all - Left recursion(which can't be parsed by a recursive-descent parser).
 Second - Ambiguity. The ambiguous grammars have more than one parse tree for a given string.
-It makes the meaning of the expression unambiguous.
 
 Here's an example: 
 
@@ -95,8 +94,84 @@ Here's a syntax tree for expression a + b * c
 
 
 
+When trying to implement the parser, i confronted another problem.
+Let's say we have a grammar of form
+	
+	L -> id | const
+	M -> L | ++M
+	G -> M | G++
+	S -> G | M.
+
+Suppose we have a string ++id++ which we want to parse from S.
+First token we see is "++", but "++" is both in First(M) and in First(G)(Because G produces M).
+We only have one symbol of lookahead, how do we choose which production to apply? 
+There should be other, more powerful algorithms that would handle this problem efficiently,
+but for now, to keep things simple i am going to do bactracking. 
+
+Now, the longest production in S is "M.", so we try it first. The "++id" part of the string matches,
+but then we have "++", which doesn't match with ".", so we have an error. Now we go back to the 
+state before we tried to apply the production and try G. G fits for our string. Done.
+
+
+
+-Error handling
+Again, i chose the simplest way to go about it. I am going to handle Errors with a method called
+Panic-Mode Recovery, described in the dragonbook(Yeh, almost all techniques that i use are taken from dragon book :) ).
+
+Here's what the book says:
+"With this method, on discovering an error, the parser discards input symbols
+one at a time until one of a designated set of synchronizing tokens is found.
+The synchronizing tokens are usually delimiters, such as semicolon or }, whose
+role in the source program is clear and unambiguous. While panic-mode correction often skips a 
+considerable amount of input without checking it for additional errors, it has the 
+advantage of simplicity, and, unlike some methods to be considered later, is 
+guaranteed not to go into an infinite loop."
+
+Suppose we have the following grammar 
+ 
+	E -> T E'
+
+	E' ->  + T E' | -T E' | e
+
+	T -> * F | / F | F 
+
+	F -> id | e
+
+
+We want to derive a string "id . id" from E. "id" is derived as follows: E->T->F->id.
+Next we have ".". We look in FIRST(E') - no matches. So, we would output an error here of form
+"Epected operator in line line_num" and skip all the tokens till we meet one of the synchronizing tokens.
+
+But there is a little catch here - Backtracking. Let's take the above grammar again.
+	
+	L -> id | const
+	M -> L | ++M
+	G -> M | G++
+	S -> G | M.
+
+We want to derive the same string from it: "++id++". We store the current state and try to apply the production "M."
+We derive "++id" from M, after that the lookahead symbol is "++". It doesn't match against
+".", so we have an error. Normally, we would do things described above, but here we have backtracking.
+We don't print any errors, don't discard input, we just restore the state and try to apply "G".
+We could also store the info about the error that accured when trying to apply "M.". If non of the productions 
+can be applied, we can use this info to report what symbols where expected by parser(As usual, actually).
+
+
+
+-Storing the state
+
+There seem to be two ways to store the state when we need to do bactracking. 
+The first one would be making a copy of the state of a lexer and buffer. 
+Then, if a production fails, we can restore the state.
+
+The second one, the one we're going to use implies having a buffer of tokens we got after we started parsing a production. 
+If we encounter an error, we can just set the lookahead token to the first one in the buffer and try applying other production.
+I prefer this one because.. it's better. Obviously. You don't have to copy anything. It's faster and it's simpler.
+
+A symbol that needs bactracking when parsing it, may produce symbol that also needs bactracking, so we must be able to 
+store several states, which i am going to implement using stack.
+
 Example: Construction of Syntax tree.
-Error handling.
 Left-factoring & Left recursion.
 
 
