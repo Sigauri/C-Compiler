@@ -18,7 +18,7 @@ Lets have a look at the grammar for arithmetic expressions.
 First, i'll show you the "wrong" one, explain why its wrong,
 and then we will write the "right" grammar.
 
-**E -> E + E | E - E | E * E | E / E | id**
+	E -> E + E | E - E | E * E | E / E | id
 
 Here "id" stands for any set of characters and digits, beginning with a character.
 A really simple grammar. Whats wrong about it? 
@@ -32,11 +32,11 @@ Let's say we have an expression a + b * c
 How is that string derived from the grammar above?
 The first option:
 
-**E -> E + E -> a + E -> a + E * E -> a + b * E -> a + b * c** 
+	E -> E + E -> a + E -> a + E * E -> a + b * E -> a + b * c
 
 The second option:
 
-**E -> E * E -> E + E * E -> a + E * E -> a + b * E -> a + b * c** 
+	E -> E * E -> E + E * E -> a + E * E -> a + b * E -> a + b * c
 
 So, both of these methods derive the same string **a + b * c**, but if we would
 build a tree while parsing this string, and evaluate the values of these expressions, 
@@ -47,11 +47,11 @@ we need to rewrite this grammar.
 
 Here's the "right" way of doing it:
 
-**E -> E + T | E - T | T**
+	E -> E + T | E - T | T
 
-**T -> * F | / F | F**
+ 	T -> * F | / F | F
 
-**F -> id | e**
+ 	F -> id | e
 
 Now, you can check that there is only one way of deriving the string **a + b * c** from this grammar.
 
@@ -60,13 +60,13 @@ The reason is the production  **E -> E + T | E - T | T**.
 Because the leftmost symbol after the **->** is equal to that of before **->**, it is left recursive.
 Luckily, left recursion is easy to eliminate.
 
-**E -> T E' | T E'**
+ 	E -> T E' | T E'
 
-**E' ->  + T E' | -T E' | e**
+ 	E' ->  + T E' | -T E' | e
 
-**T -> * F | / F | F** 
+ 	T -> * F | / F | F
 
-**F -> id | e**
+ 	F -> id | e
 
 That's it. 
 
