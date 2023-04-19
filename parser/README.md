@@ -88,8 +88,8 @@ Here's a syntax tree for expression **a + b * c**
 									   /\
 									  /  \
 									 a    *
-									 	 / \
-									 	/   \
+									     / \
+									    /   \
 									   b	 c
 
 
