@@ -14,5 +14,5 @@ All the **algorithms and data structures** will be implemented from scratch. So 
 ### Conclusion
 As a result of this project, we will hopefully have a working compiler, like gcc, but probably much simpler. 
 
-Overall, this is mostly for learning purposes and I will do my best to provide documentation as detailed & easy to understand as I can, so, **feel free to contribute**.
+Overall, this is mostly for learning purposes and I will do my best to provide documentation as detailed & easy to understand as I can, so, **feel free to share your ideas and contribute**.
 
