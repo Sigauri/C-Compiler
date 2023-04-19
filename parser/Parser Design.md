@@ -97,10 +97,10 @@ Here's a syntax tree for expression **a + b * c**
 When trying to implement the parser, i confronted another problem.
 Let's say we have a grammar of form
 	
-	**L -> id | const**
-	**M -> L | ++M**
-	**G -> M | G++**
-	**S -> G | M.**
+	L -> id | const
+	M -> L | ++M
+	G -> M | G++
+	S -> G | M.
 
 Suppose we have a string ++id++ which we want to parse from S.
 First token we see is "++", but "++" is both in First(M) and in First(G)(Because G produces M).
