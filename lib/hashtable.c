@@ -1,5 +1,5 @@
 #include "hashtable.h"
-#include "lex.h"
+
 #include "string.h"
 #include "stdio.h"
 #include <assert.h>

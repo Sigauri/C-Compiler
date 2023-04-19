@@ -1,4 +1,4 @@
-#include "lexer/stack.h"
+#include "lib/stack.h"
 
 struct error
 {

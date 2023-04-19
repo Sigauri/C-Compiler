@@ -1,14 +1,12 @@
-Lexical analyzer design
+# Lexical analyzer design
 
-//////////////////////// What does it do? ////////////////////////
+## What does it do? 
 
 The lexer takes a stream of characters from a file and forms a structure called "token".
 The structure contains the type of the token and its lexeme. 
 
-//////////////////////////////////////////////////////////////////
 
-
-//////////////////////// How does it work ? ////////////////////////
+## How does it work ? 
 
 Before using any functions of the lexer, the user must call the initialization function,
 which initializes standard search paths for header files, the lexer state etc.
@@ -16,28 +14,21 @@ which initializes standard search paths for header files, the lexer state etc.
 The user gets tokens by calling get_next_token(), which returns a pointer to c_token data structure.
 
 
-////////////////////////////////////////////////////////////////////
-
-
-//////////////////////// Keywords and Identifiers //////////////////////
+## Keywords and Identifiers 
 
 Identifier and keywords consist of characters, digits and the underscore characters, but always start 
 with a character.
 
-////////////////////////////////////////////////////////////////////////
 
-
-//////////////////////// Reading Files ////////////////////////
+## Reading Files  
 
 The lexer will read the file to be lexed with C standard lib functions 
 and store data into a buffer. All dynamic memory allocation will be done with malloc.
 A data structure containing infos about the file will be malloce'd for each
 file that was opened.
 
-///////////////////////////////////////////////////////////////
 
-
-//////////////////////// Recognition and Handling of punctuators ////////////////////////
+## Recognition and Handling of punctuators 
 
 The full list of punctuators:
 >-<+/*%!&|^#.=[](){},;:~
@@ -46,10 +37,8 @@ First 14 characters can be continued with multiple characters, for example:
 
 >	>>	>>= >=
 
-/////////////////////////////////////////////////////////////////////////////////////////
 
-
-//////////////////////// Symbol Table ////////////////////////
+## Symbol Table 
 
 We need symbol table to store some additive info
 for the IDs and Keywords, to check if the variables are declared etc. 

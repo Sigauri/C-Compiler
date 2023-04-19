@@ -1,5 +1,5 @@
 #include "errors.h"
-#include "lexer/stack.h"
+#include "lib/stack.h"
 #include "stdlib.h"
 #include "stdio.h"
 

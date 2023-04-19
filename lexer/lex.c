@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "ctype.h"
 #include "lex_default.h"
-#include "symboltable.h"
+#include "../lib/symboltable.h"
 
 
 struct c_file
@@ -384,11 +384,6 @@ void lstate_init(char *fname)
 	ht_state_print(c_lstate.global_st->ht);
 }
 
-/*
-
-*/
-
-//
 
 struct c_token *c_lex_get_next_token()
 {

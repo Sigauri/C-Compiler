@@ -1,10 +1,10 @@
 #include "stdio.h"
-#include "lexer/lex.h"
+#include "../lexer/lex.h"
 #include "stdarg.h"
 #include "stdlib.h"
 #include "string.h"
-#include "lexer/stack.h"
-#include "errors.h"
+#include "../lib/stack.h"
+#include "../errors.h"
 
 // Amount of synchronizing tokens
 #define SYNC_TOKENS_QT 3
@@ -699,24 +699,4 @@ void assignment_expression()
 	
 	if(bt_state->_error) display_error(pstate->estate);
 
-}
-
-	
-
-int main()
-{
-	lstate_init("lexer/test.c");
-	parser_init();
-
-	struct error_state *estate;
-	init_error_state(&estate);
-
-	pstate->move_lookahead();
-	bt_start();
-
-	assignment_expression();
-	
-	bt_end();
-	
-	return 0;
 }
