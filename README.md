@@ -3,7 +3,7 @@
 ## Learning
 
 ### Compiler design
-By programming a compiler you can learn about of its  **core components (lexer, parser, code generator etc.)**.
+By programming a compiler you can learn about its  **core components (lexer, parser, code generator etc.)**.
 This will be an interesting project to build if you love low-level programming.
 
 ### Algorithms & Data structures
